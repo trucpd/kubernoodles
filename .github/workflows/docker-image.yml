@@ -28,16 +28,16 @@ jobs:
         --entrypoint ""
 
     steps:
-      - name: Build and push with buildctl
+      - name: Build and push with Cache & Multi-arch
         shell: sh
         env:
           REGISTRY: ghcr.io
           IMAGE_NAME: trucpd/kubernoodles/kaniko-build:test
-          # Ép chạy rootless và tắt sandbox để không xung đột quyền
+          # Thêm biến CACHE để lưu trữ các layer build chung
+          CACHE_IMAGE: trucpd/kubernoodles/kaniko-build:buildcache
           BUILDKITD_FLAGS: "--rootless --oci-worker-no-process-sandbox"
           
         run: |
-          apk add --no-cache aws-cli
           echo "🚀 Khởi tạo môi trường Rootless..."
           mkdir -p /run/user/1000
           export XDG_RUNTIME_DIR=/run/user/1000
@@ -48,9 +48,16 @@ jobs:
           AUTH=$(echo -n "trucpd:${{ secrets.GITHUB_TOKEN }}" | base64)
           echo "{\"auths\": {\"$REGISTRY\": {\"auth\": \"$AUTH\"}}}" > $DOCKER_CONFIG/config.json
 
-          echo "🔨 Bắt đầu build và push..."
+          echo "🔨 Bắt đầu build với Cache và Multi-arch..."
           buildctl-daemonless.sh build \
             --frontend dockerfile.v0 \
             --opt context=https://github.com/trucpd/kubernoodles.git#refs/heads/main \
             --opt filename=images/kaniko-build-test.Dockerfile \
+            `# 1. CẤU HÌNH MULTI-ARCH (Build đồng thời cho AMD64 và ARM64)` \
+            --opt platform=linux/amd64,linux/arm64 \
+            `# 2. CẤU HÌNH XUẤT CACHE (Đẩy cache lên Registry)` \
+            --export-cache type=registry,ref=$REGISTRY/$CACHE_IMAGE,mode=max \
+            `# 3. CẤU HÌNH NHẬP CACHE (Kéo cache từ Registry về trước khi build)` \
+            --import-cache type=registry,ref=$REGISTRY/$CACHE_IMAGE \
+            `# 4. XUẤT IMAGE VÀ PUSH` \
             --output type=image,name=$REGISTRY/$IMAGE_NAME,push=true
