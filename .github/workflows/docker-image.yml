@@ -19,21 +19,22 @@ jobs:
         shell: sh
         env:
           REGISTRY: ghcr.io
-          IMAGE_NAME: ${{ github.actor }}/trucpd/kaniko-build:test
+          IMAGE_NAME: ${{ github.actor }}/kubernoodles/kaniko-build:test
         run: |
-          # 1. Setup Auth cho GHCR (Tương tự Kaniko)
-          mkdir -p ~/.docker
-          AUTH=$(echo -n ${{ github.actor }}:${{ secrets.GITHUB_TOKEN }} | base64)
-          echo "{\"auths\": {\"$REGISTRY\": {\"auth\": \"$AUTH\"}}}" > ~/.docker/config.json
-
-          # 2. Chạy buildctl qua script daemonless
-          # --context: BuildKit có thể dùng git URL trực tiếp giống Kaniko
-          # --local: Nếu bạn muốn build từ repo hiện tại, hãy dùng checkout trước đó và trỏ --local context=.
+          # 1. Sử dụng thư mục home thực của user 'user' trong buildkit image
+          # Hoặc dùng /tmp nếu bạn không chắc chắn
+          DOCKER_CONFIG_DIR="/home/user/.docker"
+          mkdir -p $DOCKER_CONFIG_DIR
           
+          AUTH=$(echo -n ${{ github.actor }}:${{ secrets.GITHUB_TOKEN }} | base64)
+          echo "{\"auths\": {\"$REGISTRY\": {\"auth\": \"$AUTH\"}}}" > $DOCKER_CONFIG_DIR/config.json
+
+          # 2. Quan trọng: Export biến DOCKER_CONFIG để buildctl biết chỗ tìm auth
+          export DOCKER_CONFIG=$DOCKER_CONFIG_DIR
+
+          # 3. Chạy buildctl
           buildctl-daemonless.sh build \
             --frontend dockerfile.v0 \
             --local context=${{ github.server_url }}/${{ github.repository }}.git#${{ github.ref }} \
             --local dockerfile=./images/kaniko-build-test.Dockerfile \
-            --output type=image,name=$REGISTRY/$IMAGE_NAME,push=true \
-            --export-cache type=inline \
-            --import-cache type=registry,ref=$REGISTRY/$IMAGE_NAME:buildcache
+            --output type=image,name=$REGISTRY/$IMAGE_NAME,push=true
