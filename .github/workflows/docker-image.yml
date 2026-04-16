@@ -8,33 +8,30 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: moby/buildkit:rootless
-      # Quan trọng: Ghi đè entrypoint để GHA có thể chạy lệnh sh
-      options: --entrypoint "" 
-    permissions:
-      contents: read
-      packages: write
-
+      # THÊM CÁC OPTIONS NÀY:
+      options: >-
+        --user root
+        --security-opt seccomp=unconfined
+        --security-opt apparmor=unconfined
+    
     steps:
-      - name: Build and push with buildctl
+      - name: Build and push
         shell: sh
         env:
           REGISTRY: ghcr.io
-          IMAGE_NAME: ${{ github.actor }}/kubernoodles/kaniko-build:test
+          IMAGE_NAME: trucpd/kubernoodles/kaniko-build:test
+          # THÊM FLAG NÀY ĐỂ TRÁNH LỖI SANDBOX TRONG K8S/CONTAINER
+          BUILDKITD_FLAGS: "--oci-worker-no-process-sandbox"
         run: |
-          # 1. Sử dụng thư mục home thực của user 'user' trong buildkit image
-          # Hoặc dùng /tmp nếu bạn không chắc chắn
-          DOCKER_CONFIG_DIR="/home/user/.docker"
-          mkdir -p $DOCKER_CONFIG_DIR
-          
-          AUTH=$(echo -n ${{ github.actor }}:${{ secrets.GITHUB_TOKEN }} | base64)
-          echo "{\"auths\": {\"$REGISTRY\": {\"auth\": \"$AUTH\"}}}" > $DOCKER_CONFIG_DIR/config.json
+          # Setup auth (Dùng /tmp cho chắc chắn về quyền ghi)
+          export DOCKER_CONFIG="/tmp/.docker"
+          mkdir -p $DOCKER_CONFIG
+          AUTH=$(echo -n "trucpd:${{ secrets.GITHUB_TOKEN }}" | base64)
+          echo "{\"auths\": {\"$REGISTRY\": {\"auth\": \"$AUTH\"}}}" > $DOCKER_CONFIG/config.json
 
-          # 2. Quan trọng: Export biến DOCKER_CONFIG để buildctl biết chỗ tìm auth
-          export DOCKER_CONFIG=$DOCKER_CONFIG_DIR
-
-          # 3. Chạy buildctl
+          # Chạy với flags bổ sung để tránh lỗi socket
           buildctl-daemonless.sh build \
             --frontend dockerfile.v0 \
-            --local context=${{ github.server_url }}/${{ github.repository }}.git#${{ github.ref }} \
+            --local context=https://github.com/trucpd/kubernoodles.git#refs/heads/main \
             --local dockerfile=./images/kaniko-build-test.Dockerfile \
             --output type=image,name=$REGISTRY/$IMAGE_NAME,push=true
