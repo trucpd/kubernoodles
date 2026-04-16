@@ -8,7 +8,6 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: moby/buildkit:rootless
-      # THÊM CÁC OPTIONS NÀY:
       options: >-
         --user root
         --security-opt seccomp=unconfined
@@ -20,16 +19,22 @@ jobs:
         env:
           REGISTRY: ghcr.io
           IMAGE_NAME: trucpd/kubernoodles/kaniko-build:test
-          # THÊM FLAG NÀY ĐỂ TRÁNH LỖI SANDBOX TRONG K8S/CONTAINER
-          BUILDKITD_FLAGS: "--oci-worker-no-process-sandbox"
+          # THÊM CÁC FLAG NÀY:
+          # Ép BuildKit chạy mode rootless dù container là root
+          # Và tắt sandbox để chạy được trong container khác
+          BUILDKITD_FLAGS: "--rootless --oci-worker-no-process-sandbox"
         run: |
-          # Setup auth (Dùng /tmp cho chắc chắn về quyền ghi)
+          # 1. Setup Auth vào /tmp
           export DOCKER_CONFIG="/tmp/.docker"
           mkdir -p $DOCKER_CONFIG
           AUTH=$(echo -n "trucpd:${{ secrets.GITHUB_TOKEN }}" | base64)
           echo "{\"auths\": {\"$REGISTRY\": {\"auth\": \"$AUTH\"}}}" > $DOCKER_CONFIG/config.json
 
-          # Chạy với flags bổ sung để tránh lỗi socket
+          # 2. Khởi tạo các thư mục cần thiết mà rootlesskit yêu cầu
+          mkdir -p /run/user/1000
+          export XDG_RUNTIME_DIR=/run/user/1000
+
+          # 3. Chạy buildctl
           buildctl-daemonless.sh build \
             --frontend dockerfile.v0 \
             --local context=https://github.com/trucpd/kubernoodles.git#refs/heads/main \
