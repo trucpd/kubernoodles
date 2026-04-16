@@ -1,0 +1,39 @@
+name: 🧪 Test building with BuildKit (Daemonless)
+
+on:
+  push:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container:
+      image: moby/buildkit:rootless
+      # Quan trọng: Ghi đè entrypoint để GHA có thể chạy lệnh sh
+      options: --entrypoint "" 
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Build and push with buildctl
+        shell: sh
+        env:
+          REGISTRY: ghcr.io
+          IMAGE_NAME: ${{ github.actor }}/trucpd/kaniko-build:test
+        run: |
+          # 1. Setup Auth cho GHCR (Tương tự Kaniko)
+          mkdir -p ~/.docker
+          AUTH=$(echo -n ${{ github.actor }}:${{ secrets.GITHUB_TOKEN }} | base64)
+          echo "{\"auths\": {\"$REGISTRY\": {\"auth\": \"$AUTH\"}}}" > ~/.docker/config.json
+
+          # 2. Chạy buildctl qua script daemonless
+          # --context: BuildKit có thể dùng git URL trực tiếp giống Kaniko
+          # --local: Nếu bạn muốn build từ repo hiện tại, hãy dùng checkout trước đó và trỏ --local context=.
+          
+          buildctl-daemonless.sh build \
+            --frontend dockerfile.v0 \
+            --local context=${{ github.server_url }}/${{ github.repository }}.git#${{ github.ref }} \
+            --local dockerfile=./images/kaniko-build-test.Dockerfile \
+            --output type=image,name=$REGISTRY/$IMAGE_NAME,push=true \
+            --export-cache type=inline \
+            --import-cache type=registry,ref=$REGISTRY/$IMAGE_NAME:buildcache
