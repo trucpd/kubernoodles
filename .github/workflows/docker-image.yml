@@ -37,6 +37,7 @@ jobs:
           BUILDKITD_FLAGS: "--rootless --oci-worker-no-process-sandbox"
           
         run: |
+          apk add --no-cache aws-cli
           echo "🚀 Khởi tạo môi trường Rootless..."
           mkdir -p /run/user/1000
           export XDG_RUNTIME_DIR=/run/user/1000
