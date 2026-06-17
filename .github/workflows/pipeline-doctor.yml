@@ -1,7 +1,7 @@
 name: Pipeline Doctor
 on:
   workflow_run:
-    workflows: ["CI"]
+    workflows: ["🧪 Test building with BuildKit (Daemonless)"]
     types: [completed]
 
 jobs:
