@@ -1,0 +1,46 @@
+name: Pipeline Doctor
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+
+jobs:
+  diagnose-and-fix:
+    if: ${{ github.event.workflow_run.conclusion == 'failure' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Fetch failure logs
+        run: |
+          gh run view ${{ github.event.workflow_run.id }} --log-failed \
+          > /tmp/failure.log
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Diagnose and fix
+        uses: openai/codex-action@v1
+        with:
+          prompt: |
+            The CI run failed. Logs are in /tmp/failure.log.
+            1. Identify the root cause.
+            2. Apply the minimal fix to the source code.
+            3. Run the relevant test suite to confirm the fix.
+            If you cannot fix it with high confidence, do NOT
+            modify any files — just report the diagnosis.
+          approval-mode: auto-edit
+          output-format: json
+          responses-api-endpoint: ${{ secrets.AZURE_OPENAI_ENDPOINT }}
+        env:
+          OPENAI_API_KEY: ${{ secrets.AZURE_OPENAI_API_KEY }}
+          
+
+      - name: Open fix PR
+        uses: peter-evans/create-pull-request@v6
+        with:
+          branch: codex/pipeline-doctor-${{ github.event.workflow_run.id }}
+          title: "fix: auto-remediate CI failure from run ${{ github.event.workflow_run.id }}"
+          body: "Pipeline Doctor diagnosis and fix. Review before merging."
+          labels: codex-generated, pipeline-doctor
