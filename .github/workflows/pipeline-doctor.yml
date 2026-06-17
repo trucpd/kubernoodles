@@ -32,11 +32,11 @@ jobs:
             modify any files — just report the diagnosis.
           approval-mode: auto-edit
           output-format: json
+          model: gpt-5-nano
           responses-api-endpoint: ${{ secrets.AZURE_OPENAI_ENDPOINT }}
         env:
           OPENAI_API_KEY: ${{ secrets.AZURE_OPENAI_API_KEY }}
           
-
       - name: Open fix PR
         uses: peter-evans/create-pull-request@v6
         with:
