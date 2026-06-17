@@ -39,6 +39,7 @@ jobs:
           safety-strategy: drop-sudo
           # Chỉ định thư mục chứa file config.toml vừa tạo ở step trên
           codex-home: .codex_config
+          model: gpt-5.4-mini
 
       - name: Create fix PR
         uses: peter-evans/create-pull-request@v6
