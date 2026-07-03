@@ -57,7 +57,7 @@ jobs:
         id: docker_meta
         uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5.10.0
         with:
-          images: ghcr.io/some-natalie/kubernoodles/${{ matrix.os }}
+          images: ghcr.io/trucpd/kubernoodles/${{ matrix.os }}
           tags: |
             type=sha,format=long
             type=raw,value=${{ env.SHA_SHORT }}
@@ -76,7 +76,7 @@ jobs:
         uses: actions/attest-build-provenance@977bb373ede98d70efdf65b84cb5f73e068dcc2a # v3.0.0
         id: attest
         with:
-          subject-name: ghcr.io/some-natalie/kubernoodles/${{ matrix.os }}
+          subject-name: ghcr.io/trucpd/kubernoodles/${{ matrix.os }}
           subject-digest: ${{ steps.build-and-push.outputs.digest }}
           push-to-registry: true
 
