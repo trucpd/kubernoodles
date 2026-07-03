@@ -50,7 +50,7 @@ jobs:
   deploy:
     name: Deploy test image to `test-runners` namespace
     runs-on: ubuntu-latest # use the GitHub-hosted runner to deploy to test
-    needs: [build]
+  
     #environment: test
 
     steps:
