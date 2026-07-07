@@ -11,6 +11,7 @@ jobs:
     # 1. CẤU HÌNH PERMISSIONS (QUYỀN CỦA GITHUB ACTIONS)
     # ---------------------------------------------------------
     permissions:
+      attestations: write
       contents: read      # Quyền đọc source code
       packages: write     # Bắt buộc: Quyền ghi/push image lên ghcr.io
       id-token: write     # Bắt buộc: Nếu sau này bạn đổi sang AWS OIDC
