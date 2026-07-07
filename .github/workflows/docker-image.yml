@@ -46,8 +46,12 @@ jobs:
           echo "🔑 Cấu hình Authentication cho GHCR..."
           export DOCKER_CONFIG="/tmp/.docker"
           mkdir -p $DOCKER_CONFIG
-          AUTH=$(echo -n "trucpd:${{ secrets.GITHUB_TOKEN }}" | base64)
-          echo "{\"auths\": {\"$REGISTRY\": {\"auth\": \"$AUTH\"}}}" > $DOCKER_CONFIG/config.json
+          
+          # Sử dụng tr -d '\n' để đảm bảo chuỗi Base64 nằm trên một dòng duy nhất, không bị lỗi JSON parser
+          AUTH_TOKEN=$(echo -n "trucpd:${{ secrets.GITHUB_TOKEN }}" | base64 | tr -d '\n')
+          
+          # Ghi đè file config.json với định dạng phẳng, chuẩn chỉ cho cả ghcr.io và https://ghcr.io
+          echo "{\"auths\": {\"ghcr.io\": {\"auth\": \"$AUTH_TOKEN\"}, \"https://ghcr.io\": {\"auth\": \"$AUTH_TOKEN\"}}}" > $DOCKER_CONFIG/config.json
 
           echo "🔨 Bắt đầu build với Cache và Multi-arch..."
           buildctl-daemonless.sh build \
